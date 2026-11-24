@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT="${PROJECT:-cloudcart-ecommerce-microservices}"
-DOCKER_USER="${DOCKER_USER:-trainerreyaz}"
+DOCKER_USER="${DOCKER_USER:-swapnilshetgar}"
 IMAGE_TAG="${IMAGE_TAG:-v1}"
 NAMESPACE="${NAMESPACE:-ecommerce}"
 MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-root123}"
