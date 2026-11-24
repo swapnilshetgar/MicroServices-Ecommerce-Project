@@ -1,0 +1,1627 @@
+  
+IMP: Take KOPS and  nodes bigger machine, take more CPU"s and Memory
+--------------------------------------------------------------
+
+KOPS, Master, Nodes all flexi large with 50GB , ROLE admin
+
+Project Name: CloudCart E-Commerce Microservices Platform
+--------
+
+Project Type: Full-stack Kubernetes-based microservices project
+-------------
+
+Designed By: Reyaz Sir
+------------
+
+CloudCart is a production-style e-commerce platform built using a modern microservices architecture. The project includes a React frontend, API Gateway, multiple Node.js backend microservices, MySQL database, Redis cache, Kubernetes deployment, NGINX Ingress, Prometheus monitoring, and Grafana dashboards.
+
+The frontend provides a real e-commerce user experience with product categories, product cards, search, cart drawer, admin product creation, order placement, reviews, notifications, and project branding. Users can browse products, filter by categories such as Mobiles, Laptops, Electronics, and Accessories, add items to cart, and place orders.
+
+The backend is divided into independent microservices including Auth Service, User Service, Product Service, Inventory Service, Cart Service, Order Service, Payment Service, Shipping Service, Notification Service, and Review Service. The API Gateway receives all frontend API requests under /api and routes them to the correct internal microservice.
+
+MySQL is deployed as a Kubernetes StatefulSet with persistent storage using PVC/EBS. Each service uses its own database schema such as auth_db, product_db, inventory_db, order_db, and payment_db. Redis is used for cart storage and product caching.
+
+The application is deployed on a kOps Kubernetes cluster using Deployments, Services, StatefulSet, ConfigMaps, Secrets, Ingress, resource limits, readiness probes, liveness probes, and optional HPA. Prometheus scrapes application metrics, and Grafana is used for dashboards and monitoring.
+
+Architecture Flow
+-----------------
+
+User Browser
+   ↓
+AWS Load Balancer
+   ↓
+NGINX Ingress Controller
+   ↓
+Frontend Service /
+   ↓
+React Frontend
+   ↓
+/api requests
+   ↓
+API Gateway
+   ↓
+Backend Microservices
+   ↓
+MySQL / Redis
+   ↓
+Response back to Frontend
+
+Main Microservices
+-----------------
+
+Auth Service          → User registration and login
+User Service          → User profile management
+Product Service       → Product catalog and admin product creation
+Inventory Service     → Product stock management
+Cart Service          → Cart storage using Redis
+Order Service         → Order orchestration
+Payment Service       → Mock payment processing
+Shipping Service      → Shipment and tracking creation
+Notification Service  → Order notifications
+Review Service        → Product reviews
+API Gateway           → Central routing layer
+Frontend              → React + NGINX UI
+
+
+Technologies Used
+-----------------
+React
+Node.js
+Express.js
+MySQL
+Redis
+Docker
+Kubernetes
+kOps
+NGINX Ingress Controller
+AWS Load Balancer
+ConfigMap
+Secret
+PersistentVolumeClaim
+EBS Volume
+Prometheus
+Grafana
+Key Features
+Real e-commerce frontend UI
+Product category filtering
+Search functionality
+Admin add-product page
+Cart drawer
+Order placement flow
+Mock payment success/failure
+Inventory stock validation
+Product reviews
+Order notifications
+MySQL persistent storage
+Redis cart and cache storage
+Kubernetes production-style deployment
+Ingress-based routing
+Prometheus metrics
+Grafana monitoring
+
+Resume Summary
+----------------
+
+Built and deployed CloudCart, a production-style e-commerce microservices platform on Kubernetes using React, Node.js, MySQL, Redis, Docker, NGINX Ingress, Prometheus, and Grafana. Implemented an API Gateway pattern to route frontend requests to independent backend microservices including Auth, Product, Inventory, Cart, Order, Payment, Shipping, Notification, and Review services. Deployed MySQL as a StatefulSet with persistent storage and Redis for cart/session caching. Configured Kubernetes Deployments, Services, Secrets, ConfigMaps, Ingress, readiness/liveness probes, resource limits, and monitoring with Prometheus and Grafana.
+
+Interview Explanation
+------------------------
+
+In this project, I designed a real-time e-commerce microservices application called CloudCart. The user accesses the React frontend through an AWS Load Balancer and NGINX Ingress. The frontend calls backend APIs through an API Gateway, which routes traffic to different microservices. Each microservice is independently deployed and communicates with MySQL or Redis as required. The Order Service coordinates with Inventory, Payment, Shipping, and Notification services to complete the order flow. The entire platform runs on Kubernetes and is monitored using Prometheus and Grafana.
+
+This setup gives you:
+
+React Frontend
+API Gateway
+Auth Service
+User Service
+Product Service
+Inventory Service
+Cart Service
+Order Service
+Payment Service
+Shipping Service
+Notification Service
+Review Service
+MySQL StatefulSet
+Redis
+NGINX Ingress
+Prometheus ServiceMonitor
+PrometheusRule Alerts
+Kubernetes probes
+Resource requests and limits
+HPA manifests
+
+We will use Kubernetes Deployment, Service, ConfigMap, Secret, StatefulSet, Ingress, readiness/liveness probes, and resource requests/limits. Kubernetes probes help decide whether a container is healthy and ready for traffic, Secrets are used for sensitive values, StatefulSets are used for stateful workloads like databases, and requests/limits help Kubernetes schedule and control CPU/memory usage.
+
+1. Final Architecture
+
+
+Browser
+  |
+  v
+React Frontend
+  |
+  v
+NGINX Ingress
+  |
+  v
+API Gateway
+  |
+  |-- /api/auth ----------> Auth Service ----------> MySQL auth_db
+  |-- /api/users ---------> User Service ----------> MySQL user_db
+  |-- /api/products ------> Product Service -------> MySQL product_db + Redis cache
+  |-- /api/inventory -----> Inventory Service -----> MySQL inventory_db
+  |-- /api/cart ----------> Cart Service ----------> Redis
+  |-- /api/orders --------> Order Service ---------> MySQL order_db
+  |                         |--> Inventory Service
+  |                         |--> Payment Service
+  |                         |--> Shipping Service
+  |                         |--> Notification Service
+  |
+  |-- /api/payments ------> Payment Service -------> MySQL payment_db
+  |-- /api/shipping ------> Shipping Service ------> MySQL shipping_db
+  |-- /api/notifications -> Notification Service --> MySQL notification_db
+  |-- /api/reviews -------> Review Service --------> MySQL review_db
+
+Monitoring:
+
+Prometheus -> ServiceMonitor -> All backend /metrics endpoints
+Grafana -> Prometheus
+
+
+2. Install Required Tools on Amazon Linux 2023
+---------------------------------------------
+
+Note: No need to wait for the Cluster to up, open a new tab and start below
+
+Run this on your machine where kubectl and kops are already working.
+
+sudo dnf update -y
+
+sudo dnf install -y git wget tar gzip docker
+
+sudo systemctl enable docker
+sudo systemctl start docker
+
+docker version
+
+Install Helm:
+------------
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+
+chmod 700 get_helm.sh
+
+./get_helm.sh
+
+helm version
+
+Helm is the package manager we will use for NGINX Ingress and Prometheus stack installation.
+
+Verify Kubernetes:
+-------------------
+
+kubectl get nodes
+kubectl get pods -A
+kubectl cluster-info
+
+
+3. Create the Complete Project
+-----------------------------
+
+This will create the below structure
+.
+├── cloudcart-ecommerce-microservices
+├── README.md
+├── database
+│   └── init.sql
+├── frontend
+│   ├── Dockerfile
+│   ├── index.html
+│   ├── nginx.conf
+│   ├── package.json
+│   └── src
+│       ├── main.jsx
+│       └── style.css
+├── k8s
+│   ├── backend.yaml
+│   ├── frontend.yaml
+│   ├── hpa.yaml
+│   ├── ingress.yaml
+│   ├── monitoring.yaml
+│   ├── mysql.yaml
+│   ├── namespace.yaml
+│   ├── redis.yaml
+│   └── secret.yaml
+├── scripts
+│   └── build-push.sh
+├── services
+│   ├── api-gateway
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── server.js
+│   ├── auth-service
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── server.js
+│   ├── cart-service
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── server.js
+│   ├── inventory-service
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── server.js
+│   ├── notification-service
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── server.js
+│   ├── order-service
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── server.js
+│   ├── payment-service
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── server.js
+│   ├── product-service
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── server.js
+│   ├── review-service
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── server.js
+│   ├── shipping-service
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── server.js
+│   └── user-service
+│       ├── Dockerfile
+│       ├── package.json
+│       └── server.js
+└── values-monitoring.yaml
+
+
+yum install -y tree
+
+
+vi create-cloudcart.sh
+
+see the create-cloudcart.sh file and copy paste the data
+
+
+
+sh create-cloudcart.sh
+
+cd cloudcart-ecommerce-microservices
+
+tree
+
+What Script Creates for us
+---------------------------
+
+It creates 11 backend microservices
+services/
+├── api-gateway/
+├── auth-service/
+├── user-service/
+├── product-service/
+├── inventory-service/
+├── cart-service/
+├── order-service/
+├── payment-service/
+├── shipping-service/
+├── notification-service/
+└── review-service/
+
+It creates MySQL databases
+----------------------------
+database/init.sql initializes separate logical databases including:
+
+auth_db
+user_db
+product_db
+inventory_db
+order_db
+payment_db
+shipping_db
+notification_db
+review_db
+
+It creates a React frontend
+-----------------------------
+The script also builds a proper e-commerce frontend containing features such as:
+
+The frontend talks to the backend through /api/....
+
+Browser
+   │
+   ▼
+React
+   │
+   │ /api/products
+   ▼
+API Gateway
+   │
+   ▼
+Product Service
+   │
+   ▼
+MySQL
+
+It creates Docker configuration
+
+Each microservice gets its own Docker configuration, and the frontend is containerized separately.
+
+The generated build-push.sh builds and pushes images like:
+
+So you end up with 12 application Docker images:
+
+It creates Kubernetes resources
+--------------------------------
+The script generates a Kubernetes namespace:
+
+Namespace
+└── ecommerce
+
+and a Kubernetes Secret containing values for MySQL and JWT configuration.
+
+It also generates Kubernetes Deployments and Services for all 11 backend microservices. Each backend container exposes port 3000, while its Kubernetes Service exposes port 80.
+
+It creates MySQL as a StatefulSet
+-------------------------------
+MySQL Service
+      │
+      ▼
+MySQL StatefulSet
+      │
+      ▼
+MySQL Pod
+      │
+      ▼
+Persistent Volume Claim
+      │
+      ▼
+5 Gi Storage
+
+It creates Redis
+---------------
+
+Redis is also deployed inside Kubernetes:
+
+Redis Deployment
+        │
+        ▼
+Redis Pod
+        │
+        ▼
+Redis Service :6379
+
+Redis is being used particularly for things like:
+
+Cart data
+Caching
+
+So:
+
+Cart Service ─────────► Redis
+
+
+Product Service
+       │
+       ├── Cache hit ─► Redis
+       │
+       └── Cache miss ► MySQL
+
+
+It creates the frontend Deployment + Service
+----------------------------------------
+The frontend gets its own Kubernetes Deployment and Service:
+
+It creates an NGINX Ingress configuration
+----------------------------------
+The generated Ingress sends two types of traffic:
+                       Internet
+                           │
+                           ▼
+                    NGINX Ingress
+                           │
+                 ┌─────────┴─────────┐
+                 │                   │
+                 ▼                   ▼
+
+              /api/*                 /*
+                 │                   │
+                 ▼                   ▼
+            API Gateway           Frontend
+                 │
+                 ▼
+           Microservices
+
+It prepares Prometheus monitoring
+--------------------------------
+Your microservices expose /metrics, and the generated Kubernetes Services have the label:
+
+cloudcart-monitor: "true"
+
+The script also creates an optional ServiceMonitor that tells Prometheus to scrape:
+
+/metrics
+
+every:
+
+15 seconds
+
+So the monitoring concept becomes:
+
+Microservices
+    │
+    │ /metrics
+    ▼
+Prometheus
+    │
+    ▼
+Grafana
+
+
+
+4. Login to Docker Hub
+----------------------
+
+Replace with your Docker Hub username.
+
+docker login
+
+export DOCKER_USER=swapnilshetgar
+export IMAGE_TAG=v1
+
+echo $DOCKER_USER
+echo $IMAGE_TAG
+
+
+
+
+Build and push all images:
+-----------------------
+cd cloudcart-ecommerce-microservices
+
+./scripts/build-push.sh
+
+This will build and push:
+
+cloudcart-api-gateway:v1
+cloudcart-auth-service:v1
+cloudcart-user-service:v1
+cloudcart-product-service:v1
+cloudcart-inventory-service:v1
+cloudcart-cart-service:v1
+cloudcart-order-service:v1
+cloudcart-payment-service:v1
+cloudcart-shipping-service:v1
+cloudcart-notification-service:v1
+cloudcart-review-service:v1
+cloudcart-frontend:v1
+
+The frontend Dockerfile uses a multi-stage build: Node builds the React static files, and NGINX serves them in the final container. Multi-stage builds help keep final container images smaller by copying only the final artifacts into the runtime image.
+
+
+
+5. Install NGINX Ingress Controller
+---------------------------------
+
+Install ingress controller:
+
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+
+helm repo update
+
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx \
+  --create-namespace
+
+Check:
+------
+
+kubectl get pods -n ingress-nginx
+
+kubectl get svc -n ingress-nginx
+
+You should see:
+
+ingress-nginx-controller
+
+The ingress-nginx Helm chart installs an NGINX-based Kubernetes Ingress Controller. The chart supports the ingressClassName: nginx field used in the project Ingress manifest.
+
+6. Optional: Install Prometheus Stack
+-----------------------------------------
+
+Skip this section only if you already installed kube-prometheus-stack.
+
+Create values file:
+
+vi values-monitoring.yaml
+
+Paste:
+
+grafana:
+  enabled: true
+  adminUser: admin
+  adminPassword: admin123
+  service:
+    type: ClusterIP
+
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorNamespaceSelector: {}
+
+    ruleSelectorNilUsesHelmValues: false
+    ruleNamespaceSelector: {}
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    alertmanagerConfigSelector: {}
+    alertmanagerConfigNamespaceSelector: {}
+
+kubeStateMetrics:
+  enabled: true
+
+nodeExporter:
+  enabled: true
+
+Install:
+
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+
+helm repo update
+
+helm upgrade --install kube-prometheus-stack \
+  prometheus-community/kube-prometheus-stack \
+  --namespace monitoring \
+  --create-namespace \
+  --values values-monitoring.yaml
+
+Check:
+------
+
+kubectl get pods -n monitoring
+
+kubectl get crd | grep monitoring.coreos.com
+
+Prometheus Operator provides Kubernetes-native custom resources like ServiceMonitor and PrometheusRule, which we use later for scraping service metrics and creating alerts.
+
+7. Deploy CloudCart to Kubernetes
+---------------------------------
+
+
+./scripts/deploy.sh
+
+
+kubectl get pods -n ecommerce
+kubectl get svc -n ecommerce
+kubectl get ingress -n ecommerce
+
+kubectl get endpoints api-gateway auth-service product-service notification-service -n ecommerce
+
+kubectl get ingress -n ecommerce
+or
+kubectl get svc -n ingress-nginx
+
+
+
+
+Deploy monitoring resources:
+---------------------------
+
+Install Metric Server
+---------------------
+
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/high-availability-1.21+.yaml
+
+Apply HPA only if kubectl top nodes works:
+
+kubectl top nodes
+
+Then:
+
+
+vi k8s/hpa.yaml
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-gateway-hpa
+  namespace: ecommerce
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api-gateway
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: product-service-hpa
+  namespace: ecommerce
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: product-service
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: order-service-hpa
+  namespace: ecommerce
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: order-service
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+
+
+
+kubectl apply -f k8s/hpa.yaml
+
+8. Verify Everything
+---------------------
+
+Check all resources:
+
+kubectl get all -n ecommerce
+
+Expected:
+
+mysql-0
+redis
+frontend
+api-gateway
+auth-service
+user-service
+product-service
+inventory-service
+cart-service
+order-service
+payment-service
+shipping-service
+notification-service
+review-service
+
+Check ingress:
+--------------
+
+kubectl get ingress -n ecommerce
+
+Check pods:
+-------------
+
+kubectl get pods -n ecommerce
+
+Check services:
+---------------
+
+kubectl get svc -n ecommerce
+
+Check logs:
+-----------
+
+kubectl logs -n ecommerce deploy/api-gateway
+kubectl logs -n ecommerce deploy/product-service
+kubectl logs -n ecommerce deploy/order-service
+
+9. Access the Application
+
+Option 1: Use LoadBalancer URL.
+------------------------------
+
+kubectl get svc -n ingress-nginx
+
+
+
+
+Open ELB 
+--------
+
+http://af55bf9c5a56942e1988269869f8e102-1861528970.ap-south-1.elb.amazonaws.com
+
+Login --> Register --> It says, Hi Reyaz 
+
+
+
+Additional tasks - Monintoring
+================
+
+Install Prometheus stack
+-----------------------
+
+helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+  -n monitoring \
+  --create-namespace \
+  --set grafana.service.type=LoadBalancer \
+  --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
+  --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \
+  --set prometheus.prometheusSpec.ruleSelectorNilUsesHelmValues=false \
+  --set prometheus.prometheusSpec.serviceMonitorNamespaceSelector.any=true \
+  --set prometheus.prometheusSpec.ruleNamespaceSelector.any=true
+
+
+kubectl get pods -n monitoring
+
+Access Grafana
+-------------
+kubectl get svc -n monitoring kube-prometheus-stack-grafana
+
+Password:
+---------
+kubectl get secret kube-prometheus-stack-grafana \
+  -n monitoring \
+  -o jsonpath="{.data.admin-password}" | base64 -d
+
+
+
+
+Username: admin
+Password: admin123
+
+
+Label CloudCart services for scraping
+-------------------------------------
+
+Prometheus will scrape only services matching this label:
+
+
+kubectl label svc api-gateway \
+  auth-service \
+  user-service \
+  product-service \
+  inventory-service \
+  cart-service \
+  order-service \
+  payment-service \
+  shipping-service \
+  notification-service \
+  review-service \
+  -n ecommerce \
+  cloudcart-monitor=true \
+  --overwrite
+
+
+kubectl get svc -n ecommerce --show-labels
+
+You should see: cloudcart-monitor=true
+
+Do not label mysql, redis, or frontend for this /metrics ServiceMonitor unless you also deploy exporters for them.
+
+kubectl get servicemonitor -n ecommerce
+
+kubectl get prometheusrule -n ecommerce
+
+Expected:
+cloudcart-services
+cloudcart-alert-rules
+
+
+cat > k8s/monitoring.yaml <<'EOF'
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cloudcart-services
+  namespace: ecommerce
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+    - ecommerce
+  selector:
+    matchLabels:
+      cloudcart-monitor: "true"
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 15s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cloudcart-alert-rules
+  namespace: ecommerce
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+  - name: cloudcart.rules
+    rules:
+    - alert: CloudCartServiceDown
+      expr: up{namespace="ecommerce"} == 0
+      for: 1m
+      labels:
+        severity: critical
+        namespace: ecommerce
+      annotations:
+        summary: "CloudCart service is down"
+        description: "A CloudCart target is down for more than 1 minute."
+
+    - alert: CloudCartHighApiGateway5xx
+      expr: sum(rate(api_gateway_http_requests_total{status=~"5.."}[2m])) > 1
+      for: 1m
+      labels:
+        severity: warning
+        namespace: ecommerce
+      annotations:
+        summary: "High 5xx errors in API Gateway"
+        description: "API Gateway is returning high 5xx errors."
+
+    - alert: CloudCartPaymentFailures
+      expr: increase(payment_service_failed_total[5m]) > 3
+      for: 1m
+      labels:
+        severity: warning
+        namespace: ecommerce
+      annotations:
+        summary: "Payment failures detected"
+        description: "Payment Service has multiple failed payments in the last 5 minutes."
+
+    - alert: CloudCartPodRestarts
+      expr: increase(kube_pod_container_status_restarts_total{namespace="ecommerce"}[10m]) > 2
+      for: 1m
+      labels:
+        severity: warning
+        namespace: ecommerce
+      annotations:
+        summary: "CloudCart pod restart detected"
+        description: "A CloudCart pod restarted more than 2 times in the last 10 minutes."
+
+    - alert: CloudCartHighMemoryUsage
+      expr: |
+        sum by (pod) (
+          container_memory_working_set_bytes{namespace="ecommerce",container!="",image!=""}
+        ) / 1024 / 1024 > 400
+      for: 2m
+      labels:
+        severity: warning
+        namespace: ecommerce
+      annotations:
+        summary: "High memory usage in CloudCart pod"
+        description: "A CloudCart pod is using more than 400 MB memory."
+
+    - alert: CloudCartHighCPUUsage
+      expr: |
+        sum by (pod) (
+          rate(container_cpu_usage_seconds_total{namespace="ecommerce",container!="",image!=""}[5m])
+        ) > 0.4
+      for: 2m
+      labels:
+        severity: warning
+        namespace: ecommerce
+      annotations:
+        summary: "High CPU usage in CloudCart pod"
+        description: "A CloudCart pod is using high CPU."
+EOF
+
+
+kubectl apply -f k8s/monitoring.yaml
+
+kubectl get servicemonitor -n ecommerce
+kubectl get prometheusrule -n ecommerce
+
+
+
+14. Access Prometheus
+--------------------
+
+kubectl get svc -n monitoring
+
+Look for this service: kube-prometheus-stack-Prometheus  
+
+Open New tab
+
+kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090 --address 0.0.0.0
+
+Access Prometheus with KOPS IP address http://KOPSIP:9090
+
+Click --> Query and paste below and click on Execute
+
+Try these queries:
+------------------
+
+up{namespace="ecommerce"}
+api_gateway_http_requests_total
+product_service_http_requests_total
+order_service_orders_created_total
+payment_service_success_total
+payment_service_failed_total
+sum(rate(api_gateway_http_requests_total[2m]))
+sum(rate(product_service_http_requests_total[2m]))
+
+
+
+15. Create Grafana Dashboard Panels
+------------------------------------
+
+In Grafana:
+
+Dashboards → New → New Dashboard → Add Visualization
+
+Use Prometheus data source.
+---------------------------
+
+This is just an INFO, dont do any labs for below, these are the panels we need to create
+
+Panel 1: API Gateway Request Rate
+sum(rate(api_gateway_http_requests_total[2m]))
+Panel 2: Product Service Requests
+sum(rate(product_service_http_requests_total[2m]))
+Panel 3: Orders Created
+increase(order_service_orders_created_total[10m])
+Panel 4: Payment Success
+increase(payment_service_success_total[10m])
+Panel 5: Payment Failures
+increase(payment_service_failed_total[10m])
+Panel 6: Services Up
+up{namespace="ecommerce"}
+Panel 7: Pod Restarts
+sum(increase(kube_pod_container_status_restarts_total{namespace="ecommerce"}[10m])) by (pod)
+Panel 8: CPU Usage
+sum(rate(container_cpu_usage_seconds_total{namespace="ecommerce",container!="",container!="POD"}[2m])) by (pod)
+Panel 9: Memory Usage MB
+sum(container_memory_working_set_bytes{namespace="ecommerce",container!="",container!="POD"}) by (pod) / 1024 / 1024
+16. Test Prometheus Alerts
+
+
+
+Step 1: Add your first panel
+----------------------------
+
+On this screen, click the + button on the right side of the dashboard area.
+
+Configure visualization
+
+Select datasource:
+
+Prometheus
+
+Step 2: Create Panel 1 — CloudCart Service Health
+-----------------------------------------------
+
+In below section --> Below Query Inspector --> Builder and Code will be there --> select code 
+
+In the query box, paste this:
+
+up{namespace="ecommerce"}
+
+On the right side:
+
+Visualization → Stat
+
+Panel title → CloudCart Service Health
+
+Then click:
+
+Apply
+
+This panel shows whether your CloudCart services are UP.
+
+Step 3: Add second panel
+-------------------------
+Again click:
+
++ Add → Visualization
+
+Choose:
+
+Prometheus
+
+Paste this query:
+
+sum(rate(api_gateway_http_requests_total[2m]))
+
+Set:
+
+Visualization → Time series
+Panel title → API Gateway Request Rate
+
+Click:
+
+Apply
+Step 4: Add API Gateway status code panel
+------------------------------------------
+Add another panel.
+
+Query:
+
+  sum by (status) (rate(api_gateway_http_requests_total[2m]))
+
+Set:
+
+Visualization → Time series
+Panel title → API Gateway Status Codes
+
+Click:
+
+Apply
+Step 5: Add Product Service traffic panel
+----------------------------------------
+Query:
+
+sum(rate(product_service_http_requests_total[2m]))
+
+Set:
+
+Visualization → Time series
+Panel title → Product Service Traffic
+
+Click:
+
+Apply
+Step 6: Add Orders Created panel
+-------------------------------
+Query:
+
+order_service_orders_created_total
+
+Set:
+
+Visualization → Stat
+Panel title → Total Orders Created
+
+Click:
+
+Apply
+Step 7: Add Payment Success panel
+---------------------------------
+Query:
+
+payment_service_success_total
+
+Set:
+
+Visualization → Stat
+Panel title → Successful Payments
+
+Click:
+
+Apply
+Step 8: Add Payment Failure panel
+---------------------------------
+Query:
+
+  payment_service_failed_total
+
+Set:
+
+Visualization → Stat
+Panel title → Failed Payments
+
+Click:
+
+Apply
+Step 9: Add Pod CPU panel
+--------------------------
+Query:
+
+sum by (pod) (
+  rate(container_cpu_usage_seconds_total{namespace="ecommerce", container!="", image!=""}[5m])
+)
+
+Set:
+
+Visualization → Time series
+Panel title → CloudCart Pod CPU Usage
+
+Click:
+
+Apply
+Step 10: Add Pod Memory panel
+-----------------------------
+Query:
+
+sum by (pod) (
+  container_memory_working_set_bytes{namespace="ecommerce", container!="", image!=""}
+) / 1024 / 1024
+
+Set:
+
+Visualization → Time series
+Panel title → CloudCart Pod Memory Usage MB
+
+Click:
+
+Apply
+Step 11: Save dashboard
+-------------------------
+Top-right click:
+
+Save
+
+Dashboard name:
+
+CloudCart E-Commerce Microservices Dashboard
+
+Click:
+
+Save
+
+
+If panel shows “No data”
+------------------------
+
+Generate traffic to your app:
+
+export APP_URL=http://<YOUR-CLOUDCART-LOADBALANCER-DNS>
+
+for i in {1..50}; do
+  curl -s $APP_URL/api/products > /dev/null
+done
+
+
+*********** COMPLETED ***************
+
+
+
+
+Any modification in frontend or any micro service
+------------------------------------------------
+
+vi frontend/src/main.jsx
+
+change something ..
+
+
+docker build -t trainerreyaz/cloudcart-frontend:v9 frontend
+docker push trainerreyaz/cloudcart-frontend:v9
+
+kubectl set image deployment/frontend \
+  -n ecommerce \
+  frontend=trainerreyaz/cloudcart-frontend:v9
+
+kubectl rollout status deployment/frontend -n ecommerce
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+For LoadBalancer:
+--------------
+export APP_URL=http://<INGRESS-LOADBALANCER-DNS>
+
+Test products:
+-------------
+curl $APP_URL/api/products
+
+Register user:
+-------------
+curl -X POST $APP_URL/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Reyaz",
+    "email": "reyaz@example.com",
+    "password": "password123"
+  }'
+
+Login:
+--------
+curl -X POST $APP_URL/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "reyaz@example.com",
+    "password": "password123"
+  }'
+
+Check inventory:
+----------------
+curl $APP_URL/api/inventory/1
+
+Add to cart:
+---------------
+curl -X POST $APP_URL/api/cart/add \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": 1,
+    "productId": 1,
+    "name": "Laptop Pro 15",
+    "price": 89999,
+    "quantity": 1
+  }'
+
+View cart:
+-----------
+curl $APP_URL/api/cart/1
+
+Place successful order:
+------------------------
+curl -X POST $APP_URL/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": 1,
+    "cardNumber": "1111",
+    "items": [
+      {
+        "productId": 1,
+        "name": "Laptop Pro 15",
+        "price": 89999,
+        "quantity": 1
+      }
+    ]
+  }'
+
+Place failed payment order:
+---------------------------
+curl -X POST $APP_URL/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": 1,
+    "cardNumber": "0000",
+    "items": [
+      {
+        "productId": 2,
+        "name": "Wireless Mouse",
+        "price": 1499,
+        "quantity": 1
+      }
+    ]
+  }'
+
+Load notifications:
+-----------------------
+curl $APP_URL/api/notifications
+
+Add review:
+----------
+curl -X POST $APP_URL/api/reviews \
+  -H "Content-Type: application/json" \
+  -d '{
+    "productId": 1,
+    "userId": 1,
+    "rating": 5,
+    "comment": "Excellent laptop"
+  }'
+
+Load reviews:
+---------------
+curl $APP_URL/api/reviews/product/1
+
+11. Access MySQL and Check Data
+--------------------------------
+
+Get MySQL password:
+
+kubectl get secret cloudcart-secrets \
+  -n ecommerce \
+  -o jsonpath="{.data.MYSQL_ROOT_PASSWORD}" | base64 -d
+
+echo
+
+Connect:
+
+kubectl exec -it mysql-0 -n ecommerce -- mysql -uroot -proot123
+
+Inside MySQL:
+-------------
+
+SHOW DATABASES;
+
+USE product_db;
+SELECT * FROM products;
+
+USE inventory_db;
+SELECT * FROM inventory;
+
+USE order_db;
+SELECT * FROM orders;
+SELECT * FROM order_items;
+
+USE payment_db;
+SELECT * FROM payments;
+
+USE shipping_db;
+SELECT * FROM shipments;
+
+USE notification_db;
+SELECT * FROM notifications;
+12. Access Redis and Check Cart Data
+kubectl exec -it deploy/redis -n ecommerce -- redis-cli
+
+Inside Redis:
+------------
+KEYS *
+GET cart:1
+
+13. Access Grafana
+----------------
+kubectl port-forward svc/kube-prometheus-stack-grafana \
+  -n monitoring \
+  3000:80
+
+Open:
+
+http://localhost:3000
+
+Login:
+
+Username: admin
+Password: admin123
+
+14. Access Prometheus
+--------------------
+
+kubectl port-forward svc/kube-prometheus-stack-prometheus \
+  -n monitoring \
+  9090:9090
+
+Open:
+
+http://localhost:9090
+
+Try these queries:
+------------------
+
+up{namespace="ecommerce"}
+api_gateway_http_requests_total
+product_service_http_requests_total
+order_service_orders_created_total
+payment_service_success_total
+payment_service_failed_total
+sum(rate(api_gateway_http_requests_total[2m]))
+sum(rate(product_service_http_requests_total[2m]))
+
+
+
+15. Create Grafana Dashboard Panels
+------------------------------------
+
+In Grafana:
+
+Dashboards → New → New Dashboard → Add Visualization
+
+Use Prometheus data source.
+---------------------------
+
+Panel 1: API Gateway Request Rate
+sum(rate(api_gateway_http_requests_total[2m]))
+Panel 2: Product Service Requests
+sum(rate(product_service_http_requests_total[2m]))
+Panel 3: Orders Created
+increase(order_service_orders_created_total[10m])
+Panel 4: Payment Success
+increase(payment_service_success_total[10m])
+Panel 5: Payment Failures
+increase(payment_service_failed_total[10m])
+Panel 6: Services Up
+up{namespace="ecommerce"}
+Panel 7: Pod Restarts
+sum(increase(kube_pod_container_status_restarts_total{namespace="ecommerce"}[10m])) by (pod)
+Panel 8: CPU Usage
+sum(rate(container_cpu_usage_seconds_total{namespace="ecommerce",container!="",container!="POD"}[2m])) by (pod)
+Panel 9: Memory Usage MB
+sum(container_memory_working_set_bytes{namespace="ecommerce",container!="",container!="POD"}) by (pod) / 1024 / 1024
+16. Test Prometheus Alerts
+
+Generate failed payments:
+----------------------------
+
+for i in {1..5}
+do
+  curl -s -X POST $APP_URL/api/orders \
+    -H "Content-Type: application/json" \
+    -d '{
+      "userId": 1,
+      "cardNumber": "0000",
+      "items": [
+        {
+          "productId": 2,
+          "name": "Wireless Mouse",
+          "price": 1499,
+          "quantity": 1
+        }
+      ]
+    }'
+  echo
+done
+
+Open Prometheus alerts:
+
+http://localhost:9090/alerts
+
+You should see:
+
+CloudCartPaymentFailures
+
+
+17. Useful Kubernetes Commands
+--------------------------------
+
+Check all CloudCart pods:
+
+kubectl get pods -n ecommerce -o wide
+
+Describe failing pod:
+----------------------
+
+kubectl describe pod <pod-name> -n ecommerce
+
+View logs:
+-----------
+
+kubectl logs -n ecommerce deploy/api-gateway
+kubectl logs -n ecommerce deploy/auth-service
+kubectl logs -n ecommerce deploy/product-service
+kubectl logs -n ecommerce deploy/order-service
+
+Restart one service:
+----------------------
+
+kubectl rollout restart deployment/product-service -n ecommerce
+
+Watch rollout:
+
+kubectl rollout status deployment/product-service -n ecommerce
+
+Scale one service:
+---------------
+
+kubectl scale deployment product-service -n ecommerce --replicas=3
+
+Check HPA:
+------------
+kubectl get hpa -n ecommerce
+
+
+18. Troubleshooting
+--------------------
+
+Problem: Pods stuck in ImagePullBackOff
+
+Check image name:
+
+kubectl describe pod <pod-name> -n ecommerce
+
+Make sure your image exists:
+
+docker pull $DOCKER_USER/cloudcart-product-service:v1
+
+If your Kubernetes YAML still has placeholder:
+
+grep -R DOCKER_USER_PLACEHOLDER k8s/
+
+Fix:
+
+sed -i "s|DOCKER_USER_PLACEHOLDER|$DOCKER_USER|g" k8s/backend.yaml
+sed -i "s|DOCKER_USER_PLACEHOLDER|$DOCKER_USER|g" k8s/frontend.yaml
+
+kubectl apply -f k8s/backend.yaml
+kubectl apply -f k8s/frontend.yaml
+Problem: MySQL pod running but tables missing
+
+MySQL init scripts run only on first initialization. If PVC already exists, the init script will not run again.
+
+For a full reset:
+
+kubectl delete statefulset mysql -n ecommerce
+
+kubectl delete pvc mysql-data-mysql-0 -n ecommerce
+
+kubectl apply -f k8s/mysql.yaml
+Problem: Frontend opens but APIs fail
+
+Check API Gateway:
+
+kubectl logs -n ecommerce deploy/api-gateway
+
+Check Ingress:
+
+kubectl describe ingress cloudcart-ingress -n ecommerce
+
+Check direct API Gateway:
+
+kubectl port-forward svc/api-gateway -n ecommerce 8081:80
+
+Then:
+
+curl http://localhost:8081/api/products
+Problem: Prometheus does not show CloudCart metrics
+
+Check ServiceMonitor:
+
+kubectl get servicemonitor -n ecommerce
+
+kubectl describe servicemonitor cloudcart-services -n ecommerce
+
+Check service labels:
+
+kubectl get svc -n ecommerce --show-labels
+
+You should see:
+
+cloudcart-monitor=true
+
+Check metrics manually:
+
+kubectl port-forward svc/product-service -n ecommerce 8082:80
+
+curl http://localhost:8082/metrics
+19. How to Explain This Project in Interviews
+
+Use this explanation:
+
+I built a production-style e-commerce microservices platform on Kubernetes. The architecture includes a React frontend, an API Gateway, and multiple Node.js backend services such as Auth, Product, Inventory, Cart, Order, Payment, Shipping, Notification, and Review services. MySQL is deployed as a StatefulSet with separate databases per service, and Redis is used for cart storage and product caching. Each backend service exposes health, readiness, and Prometheus metrics endpoints. The platform is deployed using Kubernetes Deployments, Services, Secrets, ConfigMaps, Ingress, resource limits, probes, and HPAs. Prometheus scrapes service metrics using ServiceMonitor, Grafana visualizes the platform, and PrometheusRule alerts detect service failures and payment issues.
+
+20. Demo Flow for Students
+
+Show this sequence:
+
+1. Open frontend.
+2. Register user.
+3. Login user.
+4. Load products.
+5. Check stock.
+6. Add product to cart.
+7. Show cart stored in Redis.
+8. Place order.
+9. Order Service calls Inventory Service.
+10. Order Service calls Payment Service.
+11. Payment Service stores transaction.
+12. Shipping Service creates tracking number.
+13. Notification Service records message.
+14. Check MySQL data.
+15. Check Redis data.
+16. Open Grafana dashboard.
+17. Generate payment failures.
+18. Show Prometheus alert firing.
+19. Restart or scale Kubernetes service.
+
+This is a strong Development + DevOps + Kubernetes + Microservices + Monitoring project.
