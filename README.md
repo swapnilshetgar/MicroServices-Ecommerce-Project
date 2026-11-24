@@ -2,7 +2,7 @@
 
 CloudCart is a production-style, full-stack e-commerce platform built with React, Node.js/Express, MySQL, Redis, Docker, and Kubernetes. It demonstrates service decomposition, API Gateway routing, persistent database storage, caching, ingress-based traffic management, metrics, and horizontal scaling.
 
-[CloudCart architecture](CloudCart Kubernetes Architecture Infographic.png)
+![CloudCart architecture](CloudCart%20Kubernetes%20Architecture%20Infographic.png)
 
 ## Architecture
 
